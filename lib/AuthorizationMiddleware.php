@@ -4,25 +4,36 @@ namespace MMSM\Lib;
 
 use MMSM\Lib\Exceptions\JWKKeyFileException;
 use MMSM\Lib\Validators\JWKValidator;
+use MMSM\Lib\Validators\JWTValidator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Respect\Validation\Exceptions\ValidationException;
+use SimpleJWT\InvalidTokenException;
+use SimpleJWT\JWT;
 use SimpleJWT\Keys\KeySet;
 use SimpleJWT\Keys\RSAKey;
 use Slim\Exception\HttpBadRequestException;
 use Respect\Validation\Validator as V;
 use Slim\Exception\HttpException;
+use Slim\Exception\HttpInternalServerErrorException;
+use Slim\Exception\HttpUnauthorizedException;
 
 class AuthorizationMiddleware implements MiddlewareInterface
 {
     public const HEADER = 'Authorization';
+    public const EXPECTED_ALG = 'RS256';
 
     /**
      * @var JWKValidator
      */
     private JWKValidator $JWKValidator;
+
+    /**
+     * @var JWTValidator
+     */
+    private JWTValidator $JWTValidator;
 
     /**
      * @var KeySet|null
@@ -37,10 +48,12 @@ class AuthorizationMiddleware implements MiddlewareInterface
     /**
      * AuthorizationMiddleware constructor.
      * @param JWKValidator $JWKValidator
+     * @param JWTValidator $JWTValidator
      */
-    public function __construct(JWKValidator $JWKValidator)
+    public function __construct(JWKValidator $JWKValidator, JWTValidator $JWTValidator)
     {
         $this->JWKValidator = $JWKValidator;
+        $this->JWTValidator = $JWTValidator;
     }
 
     /**
@@ -88,11 +101,38 @@ class AuthorizationMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (!$request->hasHeader('Authorization')) {
-            throw new HttpBadRequestException($request, 'Missing "Authorization" header.');
-        }
-        $header = $request->getHeader(self::HEADER);
+        try {
+            if (!$request->hasHeader('Authorization')) {
+                throw new HttpUnauthorizedException($request, 'Missing "Authorization" header.');
+            }
+            $header = $this->getHeader($request);
+            if (count($header) != 2) {
+                throw new HttpUnauthorizedException($request, 'Invalid "Authorization" header.');
+            }
+            $bearer = $header[0];
 
+            if (!$this->isValidBearer($bearer)) {
+                throw new HttpUnauthorizedException($request, 'Invalid Bearer in "Authorization" header.');
+            }
+            $token = $header[1];
+            if (!$this->JWTValidator->validate($token)) {
+                throw new HttpUnauthorizedException($request, 'Invalid Token in "Authorization" header.');
+            }
+
+            if (!($this->keySet instanceof KeySet)) {
+                throw new HttpInternalServerErrorException($request, 'Failed to access keyset.');
+            }
+            $decodedToken = JWT::decode($token, $this->keySet, self::EXPECTED_ALG);
+            return $handler->handle($request->withAttribute('token', $decodedToken));
+        } catch (InvalidTokenException $invalidTokenException) {
+            throw new HttpUnauthorizedException($request, 'JWT verification failed.', $invalidTokenException);
+        } catch (\Throwable $throwable) {
+            if ($throwable instanceof HttpException) {
+                throw $throwable;
+            } else {
+                throw new HttpInternalServerErrorException($request, 'An error occored', $throwable);
+            }
+        }
     }
 
     /**
@@ -105,5 +145,26 @@ class AuthorizationMiddleware implements MiddlewareInterface
         return $this->process($request, $handler);
     }
 
+    /**
+     * @param ServerRequestInterface $request
+     * @return array
+     */
+    protected function getHeader(ServerRequestInterface $request): array
+    {
+        $header = $request->getHeader(self::HEADER);
+        if (is_array($header)) {
+            $header = $header[array_keys($header)[0]];
+        }
+        $header = preg_replace('/\s+/', ' ', $header);
+        return explode(' ', $header);
+    }
 
+    /**
+     * @param $bearer
+     * @return bool
+     */
+    protected function isValidBearer($bearer): bool
+    {
+        return in_array($bearer, $this->bearers);
+    }
 }

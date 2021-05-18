@@ -2,6 +2,9 @@
 
 namespace MMSM\Lib\Validators;
 
+use Respect\Validation\Exceptions\ValidationException;
+use Respect\Validation\Validator as V;
+
 class JWTValidator implements ValidatorInterface
 {
 
@@ -10,7 +13,11 @@ class JWTValidator implements ValidatorInterface
      */
     public function validate($data): bool
     {
-        // TODO: Implement validate() method.
+        try {
+            return $this->check($data);
+        } catch (ValidationException $validationException) {
+            return false;
+        }
     }
 
     /**
@@ -18,6 +25,11 @@ class JWTValidator implements ValidatorInterface
      */
     public function check($data): bool
     {
-        // TODO: Implement check() method.
+        v::stringType()
+            ->notEmpty()
+            ->contains('.')
+            ->regex('/([^.]+)\\.([^.]+)\\.([^.]+)/')
+            ->check($data);
+        return true;
     }
 }
