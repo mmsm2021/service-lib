@@ -25,19 +25,17 @@ class JWKValidator implements ValidatorInterface
      */
     public function check($data): bool
     {
-        v::arrayType()->each(
-            v::arrayType()
-                ->key('alg', V::stringType()->notEmpty(), true)
-                ->key('kty', V::stringType()->notEmpty(), true)
-                ->key('use', V::stringType()->notEmpty(), true)
-                ->key('n', V::stringType()->notEmpty(), true)
-                ->key('e', V::stringType()->notEmpty(), true)
-                ->key('kid', V::stringType()->notEmpty(), true)
-                ->key('x5t', V::stringType()->notEmpty(), true)
-                ->key('x5t', V::arrayType()->each(
-                    v::stringType()->notEmpty()
-                ), true)
-        )->check($data);
+        v::arrayType()
+            ->key('alg', V::stringType()->notEmpty(), true)
+            ->key('kty', V::stringType()->notEmpty(), true)
+            ->key('use', V::stringType()->notEmpty(), true)
+            ->key('n', V::stringType()->notEmpty(), true)
+            ->key('e', V::stringType()->notEmpty(), true)
+            ->key('kid', V::stringType()->notEmpty(), true)
+            ->key('x5t', V::stringType()->notEmpty(), true)
+            ->key('x5c', V::arrayType()->each(
+                v::stringType()->notEmpty()
+            ), true)->check($data);
         return true;
     }
 }
