@@ -58,13 +58,15 @@ class AuthorizationMiddleware implements MiddlewareInterface
 
     /**
      * @param string $path
+     * @param bool $local
      * @throws JWKKeyFileException
+     * @throws \Throwable
      */
-    public function loadJWKs(string $path)
+    public function loadJWKs(string $path, bool $local = true)
     {
         try {
             $this->keySet = null;
-            if (!file_exists($path)) {
+            if ($local && !file_exists($path)) {
                 throw new JWKKeyFileException('Failed to find JWK Key file: "' . $path . '".');
             }
             $content = file_get_contents($path);
