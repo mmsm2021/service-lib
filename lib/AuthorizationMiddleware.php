@@ -14,7 +14,6 @@ use SimpleJWT\InvalidTokenException;
 use SimpleJWT\JWT;
 use SimpleJWT\Keys\KeySet;
 use SimpleJWT\Keys\RSAKey;
-use Slim\Exception\HttpBadRequestException;
 use Respect\Validation\Validator as V;
 use Slim\Exception\HttpException;
 use Slim\Exception\HttpInternalServerErrorException;

@@ -2,20 +2,21 @@
 
 namespace MMSM\Lib\Parsers;
 
-use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 
-class Xml implements BodyParserInterface
+class XmlBodyParser
 {
-
     /**
-     * @inheritDoc
+     * @param StreamInterface $body
+     * @return mixed
+     * @throws \JsonException
      */
-    public function parseBody(ServerRequestInterface $request): ServerRequestInterface
+    public function __invoke(StreamInterface $body)
     {
-        return $request->withParsedBody(json_decode(
+        return json_decode(
             json_encode(
                 simplexml_load_string(
-                    $request->getBody()->getContents(),
+                    $body->getContents(),
                     "SimpleXMLElement",
                     LIBXML_NOCDATA
                 ),
@@ -24,6 +25,6 @@ class Xml implements BodyParserInterface
             true,
             512,
             JSON_THROW_ON_ERROR
-        ));
+        );
     }
 }
