@@ -2,19 +2,17 @@
 
 namespace MMSM\Lib\Parsers;
 
-use Psr\Http\Message\StreamInterface;
-
 class JsonBodyParser
 {
     /**
-     * @param StreamInterface $body
+     * @param string $body
      * @return mixed
      * @throws \JsonException
      */
-    public function __invoke(StreamInterface $body)
+    public function __invoke(string $body)
     {
         return json_decode(
-            $body->getContents(),
+            $body,
             true,
             512,
             JSON_THROW_ON_ERROR
