@@ -28,7 +28,13 @@ class JsonResponseFactory
         try {
             $response = $this->responseFactory->createResponse($code);
             if (!empty($data)) {
-                $response->getBody()->write(json_encode($data, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                $response->getBody()->write(json_encode(
+                    $data,
+                    JSON_PRETTY_PRINT |
+                    JSON_THROW_ON_ERROR |
+                    JSON_UNESCAPED_UNICODE |
+                    JSON_UNESCAPED_SLASHES
+                ));
                 return $response->withHeader('Content-Type', 'application/json');
             }
             return $response;
