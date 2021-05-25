@@ -98,7 +98,6 @@ class AuthorizationMiddleware implements MiddlewareInterface
 
     /**
      * @inheritDoc
-     * @throws HttpException
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -123,15 +122,26 @@ class AuthorizationMiddleware implements MiddlewareInterface
             if (!($this->keySet instanceof KeySet)) {
                 throw new HttpInternalServerErrorException($request, 'Failed to access keyset.');
             }
-            $decodedToken = JWT::decode($token, $this->keySet, self::EXPECTED_ALG);
-            return $handler->handle($request->withAttribute('token', $decodedToken));
+            return $handler->handle($request->withAttribute(
+                'token',
+                JWT::decode($token, $this->keySet, self::EXPECTED_ALG)
+            ));
         } catch (InvalidTokenException $invalidTokenException) {
-            throw new HttpUnauthorizedException($request, 'JWT verification failed.', $invalidTokenException);
+            return $handler->handle($request->withAttribute(
+                'token',
+                new HttpUnauthorizedException($request, 'JWT verification failed.', $invalidTokenException)
+            ));
         } catch (\Throwable $throwable) {
             if ($throwable instanceof HttpException) {
-                throw $throwable;
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    $throwable
+                ));
             } else {
-                throw new HttpInternalServerErrorException($request, 'An error occored', $throwable);
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    new HttpInternalServerErrorException($request, 'An error occurred', $throwable)
+                ));
             }
         }
     }
