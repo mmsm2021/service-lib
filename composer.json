@@ -18,7 +18,9 @@
         "slim/slim": "^4.7",
         "psr/container": "^1.0",
         "respect/validation": "^2.2",
-        "fig/http-message-util": "^1.1.5"
+        "fig/http-message-util": "^1.1.5",
+        "psr/log": "^1.1",
+        "php-di/php-di": "^6.0.0"
     },
     "autoload": {
         "psr-4": {
