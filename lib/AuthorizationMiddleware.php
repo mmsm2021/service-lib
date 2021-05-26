@@ -103,24 +103,39 @@ class AuthorizationMiddleware implements MiddlewareInterface
     {
         try {
             if (!$request->hasHeader('Authorization')) {
-                throw new HttpUnauthorizedException($request, 'Missing "Authorization" header.');
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    new HttpUnauthorizedException($request, 'Missing "Authorization" header.')
+                ));
             }
             $header = $this->getHeader($request);
             if (count($header) != 2) {
-                throw new HttpUnauthorizedException($request, 'Invalid "Authorization" header.');
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    new HttpUnauthorizedException($request, 'Invalid "Authorization" header.')
+                ));
             }
             $bearer = $header[0];
 
             if (!$this->isValidBearer($bearer)) {
-                throw new HttpUnauthorizedException($request, 'Invalid Bearer in "Authorization" header.');
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    new HttpUnauthorizedException($request, 'Invalid Bearer in "Authorization" header.')
+                ));
             }
             $token = $header[1];
             if (!$this->JWTValidator->validate($token)) {
-                throw new HttpUnauthorizedException($request, 'Invalid Token in "Authorization" header.');
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    new HttpUnauthorizedException($request, 'Invalid Token in "Authorization" header.')
+                ));
             }
 
             if (!($this->keySet instanceof KeySet)) {
-                throw new HttpInternalServerErrorException($request, 'Failed to access keyset.');
+                return $handler->handle($request->withAttribute(
+                    'token',
+                    new HttpInternalServerErrorException($request, 'Failed to access keyset.')
+                ));
             }
             return $handler->handle($request->withAttribute(
                 'token',
@@ -131,18 +146,6 @@ class AuthorizationMiddleware implements MiddlewareInterface
                 'token',
                 new HttpUnauthorizedException($request, 'JWT verification failed.', $invalidTokenException)
             ));
-        } catch (\Throwable $throwable) {
-            if ($throwable instanceof HttpException) {
-                return $handler->handle($request->withAttribute(
-                    'token',
-                    $throwable
-                ));
-            } else {
-                return $handler->handle($request->withAttribute(
-                    'token',
-                    new HttpInternalServerErrorException($request, 'An error occurred', $throwable)
-                ));
-            }
         }
     }
 
