@@ -48,7 +48,7 @@ class ValidationExceptionJsonHandler implements LoggerAwareInterface, ErrorHandl
                     ValidationException::class . '" not "' .
                     get_class($throwable) . '"');
             }
-            return $this->jsonResponseFactory->create(502, [
+            return $this->jsonResponseFactory->create(500, [
                 'error' => true,
                 'message' => ($displayErrorDetails ?
                     '"' . static::class . '" can only handle "' . ValidationException::class . '" not "' .
