@@ -75,7 +75,7 @@ class Authorizer
             );
         }
         foreach($claim as $roleOnClaim) {
-            if (in_array($roleOnClaim, $roles)) {
+            if (in_array(strtolower($roleOnClaim), $roles)) {
                 return true;
             }
         }
