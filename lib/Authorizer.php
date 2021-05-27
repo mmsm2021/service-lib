@@ -2,7 +2,9 @@
 
 namespace MMSM\Lib;
 
+use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use SimpleJWT\JWT;
 use Slim\Exception\HttpInternalServerErrorException;
 use Slim\Exception\HttpUnauthorizedException;
@@ -17,6 +19,10 @@ class Authorizer
      */
     private ContainerInterface $container;
 
+    /**
+     * Authorizer constructor.
+     * @param ContainerInterface $container
+     */
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
@@ -42,62 +48,120 @@ class Authorizer
     public function authorizeToRoles(Request $request, array $roleKeys): bool
     {
         $token = $this->readTokenFromRequest($request);
-        $roles = [];
-        $validRoleKeys = $this->container->get('user.valid.roleKeys');
-        foreach ($roleKeys as $key) {
-            if (!in_array($key, $validRoleKeys)) {
-                throw new HttpInternalServerErrorException(
-                    $request,
-                    '"' . $key . '" is not a known valid role key.'
-                );
-            }
-            $roles = array_merge($roles, $this->container->get($key));
+        if (!($token instanceof JWT)) {
+            throw $token;
         }
-        return $this->authorizeToInternalRoles($token, $roles, $request);
+        if (!$this->hasRoles($request, $roleKeys, true)) {
+            throw new HttpUnauthorizedException($request, 'Not authorized.');
+        }
+        return true;
+    }
+
+    /**
+     * @param Request $request
+     * @param string $roleKey
+     * @param bool $failOnNoToken
+     * @return bool
+     * @throws Throwable
+     */
+    public function hasRole(
+        Request $request,
+        string $roleKey,
+        bool $failOnNoToken = true
+    ): bool {
+        return $this->hasRoles($request, [$roleKey], $failOnNoToken);
+    }
+
+    /**
+     * @param Request $request
+     * @param string[] $roleKeys
+     * @param bool $failOnNoToken
+     * @return bool
+     * @throws Throwable
+     */
+    public function hasRoles(
+        Request $request,
+        array $roleKeys,
+        bool $failOnNoToken = true
+    ): bool {
+        if (!$this->isValidRoleKeys($roleKeys)) {
+            throw new HttpInternalServerErrorException($request, 'Invalid role key.');
+        }
+        $token = $this->readTokenFromRequest($request);
+        if (!($token instanceof JWT)) {
+            if ($failOnNoToken) {
+                throw $token;
+            }
+            return false;
+        }
+        $internalRoles = $this->getInternalRoles($roleKeys);
+        return $this->hasInternalRoles($token, $internalRoles);
+    }
+
+    /**
+     * @param string[] $roles
+     * @return string[]
+     */
+    public function getInternalRoles(array $roles): array
+    {
+        try {
+            $internalRoles = [];
+            foreach ($roles as $role) {
+                $internalRoles = array_merge($internalRoles, $this->container->get($role));
+            }
+            return $internalRoles;
+        } catch (NotFoundExceptionInterface | ContainerExceptionInterface $exception) {
+            return [];
+        }
+    }
+
+    /**
+     * @param string[] $keys
+     * @return bool
+     */
+    protected function isValidRoleKeys(array $keys): bool
+    {
+        $validRoleKeys = $this->container->get('user.valid.roleKeys');
+        foreach ($keys as $key) {
+            if (!in_array($key, $validRoleKeys)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
      * @param JWT $token
-     * @param array $roles
-     * @param Request $request
+     * @param string[] $roles
      * @return bool
-     * @throws HttpUnauthorizedException
      */
-    protected function authorizeToInternalRoles(JWT $token, array $roles, Request $request): bool
+    protected function hasInternalRoles(JWT $token, array $roles): bool
     {
         $namespace = $this->container->get('custom.tokenClaim.namespace');
         $claimKey = $namespace . '/roles';
         $claim = $token->getClaim($claimKey);
-        if (!is_array($claim) || empty($claim)) {
-            throw new HttpUnauthorizedException(
-                $request,
-                'Missing or Empty Claim.'
-            );
-        }
-        foreach($claim as $roleOnClaim) {
-            if (in_array(strtolower($roleOnClaim), $roles)) {
-                return true;
+        if (is_array($claim) && !empty($claim)) {
+            foreach($claim as $roleOnClaim) {
+                if (in_array(strtolower($roleOnClaim), $roles)) {
+                    return true;
+                }
             }
         }
-        throw new HttpUnauthorizedException(
-            $request,
-            'Missing Authorized role.'
-        );
+        return false;
     }
 
     /**
      * @param Request $request
-     * @return JWT
-     * @throws Throwable
+     * @return JWT|Throwable
      */
-    protected function readTokenFromRequest(Request $request): JWT
+    protected function readTokenFromRequest(Request $request)
     {
         $token = $request->getAttribute('token', null);
-        if ($token instanceof \Throwable) {
-            throw $token;
+        if ($token instanceof Throwable) {
+            return $token;
         }
         if (!($token instanceof JWT)) {
-            throw new HttpUnauthorizedException(
+            return new HttpUnauthorizedException(
                 $request,
                 'Invalid Token.'
             );
