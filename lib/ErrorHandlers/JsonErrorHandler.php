@@ -60,10 +60,10 @@ class JsonErrorHandler implements LoggerAwareInterface, ErrorHandlerInterface
             'error' => true,
         ];
 
-        $responseArray['message'] = ($throwable instanceof HttpException || $displayErrorDetails ?
+        $responseArray['message'] = [($throwable instanceof HttpException || $displayErrorDetails ?
             $throwable->getMessage() :
             'Internal Server Error'
-        );
+        )];
         $logArray['message'] = $throwable->getMessage();
         $logArray['code'] = $throwable->getCode();
         $logArray['file'] = $throwable->getFile();

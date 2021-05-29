@@ -62,7 +62,7 @@ class ValidationExceptionJsonHandler implements LoggerAwareInterface, ErrorHandl
             'error' => true,
             'message' => ($throwable instanceof NestedValidationException ?
                 $throwable->getMessages() :
-                $throwable->getMessage()
+                [$throwable->getMessage()]
             ),
         ];
         return $this->jsonResponseFactory->create(400, $returnArray);
