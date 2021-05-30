@@ -174,6 +174,20 @@ class Authorizer
     }
 
     /**
+     * @param Request $request
+     * @param string $locationId
+     * @return bool
+     */
+    public function isUserInLocation(Request $request, string $locationId): bool
+    {
+        $appMetadata = $this->getAppMetadata($request, true);
+        return isset($appMetadata['locations']) &&
+            is_array($appMetadata['locations']) &&
+            !empty($appMetadata['locations']) &&
+            in_array($locationId, $appMetadata['locations']);
+    }
+
+    /**
      * @param string[] $keys
      * @return bool
      */
