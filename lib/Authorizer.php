@@ -116,6 +116,64 @@ class Authorizer
     }
 
     /**
+     * @param Request $request
+     * @param bool $emptyOnFailure
+     * @return array
+     * @throws HttpUnauthorizedException
+     * @throws Throwable
+     */
+    public function getUserMetadata(Request $request, bool $emptyOnFailure = false): array
+    {
+        $token = $this->readTokenFromRequest($request);
+        if (!($token instanceof JWT)) {
+            if ($emptyOnFailure) {
+                return [];
+            }
+            throw $token;
+        }
+        $claim = $this->readNamespacedClaim($token, 'user_metadata');
+        if (is_array($claim)) {
+            return $claim;
+        }
+        if ($emptyOnFailure) {
+            return [];
+        }
+        throw new HttpUnauthorizedException(
+            $request,
+            'Missing "user_metadata" claim.'
+        );
+    }
+
+    /**
+     * @param Request $request
+     * @param bool $emptyOnFailure
+     * @return array
+     * @throws HttpUnauthorizedException
+     * @throws Throwable
+     */
+    public function getAppMetadata(Request $request, bool $emptyOnFailure = false): array
+    {
+        $token = $this->readTokenFromRequest($request);
+        if (!($token instanceof JWT)) {
+            if ($emptyOnFailure) {
+                return [];
+            }
+            throw $token;
+        }
+        $claim = $this->readNamespacedClaim($token, 'app_metadata');
+        if (is_array($claim)) {
+            return $claim;
+        }
+        if ($emptyOnFailure) {
+            return [];
+        }
+        throw new HttpUnauthorizedException(
+            $request,
+            'Missing "app_metadata" claim.'
+        );
+    }
+
+    /**
      * @param string[] $keys
      * @return bool
      */
@@ -137,9 +195,7 @@ class Authorizer
      */
     protected function hasInternalRoles(JWT $token, array $roles): bool
     {
-        $namespace = $this->container->get('custom.tokenClaim.namespace');
-        $claimKey = $namespace . '/roles';
-        $claim = $token->getClaim($claimKey);
+        $claim = $this->readNamespacedClaim($token, 'roles');
         if (is_array($claim) && !empty($claim)) {
             foreach($claim as $roleOnClaim) {
                 if (in_array(strtolower($roleOnClaim), $roles)) {
@@ -148,6 +204,18 @@ class Authorizer
             }
         }
         return false;
+    }
+
+    /**
+     * @param JWT $token
+     * @param string $name
+     * @return mixed
+     */
+    protected function readNamespacedClaim(JWT $token, string $name)
+    {
+        $namespace = $this->container->get('custom.tokenClaim.namespace');
+        $claimKey = $namespace . '/' . $name;
+        return $token->getClaim($claimKey);
     }
 
     /**
