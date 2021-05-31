@@ -56,7 +56,7 @@ return [
     'log.error.details' => env('LOG_ERROR_DETAILS', false),
     'auth.jwk_uri' => env('JWK_URI', false),
     'auth.allowedBearers' => [
-        'Bearer'
+        'bearer'
     ],
     AuthorizationMiddleware::class => function(
         JWKValidator $JWKValidator,

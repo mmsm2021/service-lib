@@ -174,11 +174,11 @@ class AuthorizationMiddleware implements MiddlewareInterface
     }
 
     /**
-     * @param $bearer
+     * @param string $bearer
      * @return bool
      */
-    protected function isValidBearer($bearer): bool
+    protected function isValidBearer(string $bearer): bool
     {
-        return in_array($bearer, $this->bearers);
+        return in_array(strtolower($bearer), $this->bearers);
     }
 }
