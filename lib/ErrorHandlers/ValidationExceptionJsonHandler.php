@@ -50,22 +50,22 @@ class ValidationExceptionJsonHandler implements LoggerAwareInterface, ErrorHandl
             }
             return $this->jsonResponseFactory->create(500, [
                 'error' => true,
-                'message' => ($displayErrorDetails ?
+                'message' => [($displayErrorDetails ?
                     '"' . static::class . '" can only handle "' . ValidationException::class . '" not "' .
                     get_class($throwable) . '"' :
                     'Internal Server Error'
-                )
+                )]
             ]);
         }
-
-        $returnArray = [
-            'error' => true,
-            'message' => ($throwable instanceof NestedValidationException ?
-                $throwable->getMessages() :
-                [$throwable->getMessage()]
-            ),
-        ];
-        return $this->jsonResponseFactory->create(400, $returnArray);
+        return $this->jsonResponseFactory->create(
+            400, [
+                'error' => true,
+                'message' => ($throwable instanceof NestedValidationException ?
+                    array_values($throwable->getMessages()) :
+                    [$throwable->getMessage()]
+                ),
+            ]
+        );
     }
 
     /**

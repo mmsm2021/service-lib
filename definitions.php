@@ -4,6 +4,7 @@ use MMSM\Lib\AuthorizationMiddleware;
 use MMSM\Lib\ErrorHandlers\JsonErrorHandler;
 use MMSM\Lib\ErrorHandlers\ValidationExceptionJsonHandler;
 use MMSM\Lib\Exceptions\DefinitionException;
+use MMSM\Lib\Factories\JsonResponseFactory;
 use MMSM\Lib\Parsers\JsonBodyParser;
 use MMSM\Lib\Parsers\XmlBodyParser;
 use MMSM\Lib\Validators\JWKValidator;
@@ -15,7 +16,8 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Respect\Validation\Exceptions\ValidationException;
 use Slim\App;
-use Slim\Middleware\BodyParsingMiddleware;
+use Slim\Middleware\BodyParsingMiddleware as SlimBodyParsingMiddleware;
+use MMSM\Lib\BodyParsingMiddleware;
 use Slim\Middleware\ErrorMiddleware;
 use Slim\Psr7\Factory\ResponseFactory;
 use function DI\create;
@@ -75,11 +77,16 @@ return [
         }
         return $authMiddleware;
     },
-    BodyParsingMiddleware::class => function(JsonBodyParser $jsonBodyParser, XmlBodyParser $xmlBodyParser) {
-        return new BodyParsingMiddleware([
-            'application/json' => $jsonBodyParser,
-            'application/xml' => $xmlBodyParser,
-        ]);
+    SlimBodyParsingMiddleware::class => get(BodyParsingMiddleware::class),
+    BodyParsingMiddleware::class => function(
+        JsonResponseFactory $jsonResponseFactory,
+        JsonBodyParser $jsonBodyParser,
+        XmlBodyParser $xmlBodyParser
+    ) {
+        $bodyMiddleware = new BodyParsingMiddleware($jsonResponseFactory);
+        $bodyMiddleware->registerBodyParser('application/json', $jsonBodyParser);
+        $bodyMiddleware->registerBodyParser('application/xml', $xmlBodyParser);
+        return $bodyMiddleware;
     },
     ResponseFactoryInterface::class => create(ResponseFactory::class),
     Logger::class => function(ContainerInterface $container) {
