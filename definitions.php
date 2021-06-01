@@ -4,7 +4,9 @@ use MMSM\Lib\AuthorizationMiddleware;
 use MMSM\Lib\ErrorHandlers\JsonErrorHandler;
 use MMSM\Lib\ErrorHandlers\ValidationExceptionJsonHandler;
 use MMSM\Lib\Exceptions\DefinitionException;
+use MMSM\Lib\Exceptions\JwkException;
 use MMSM\Lib\Factories\JsonResponseFactory;
+use MMSM\Lib\InternalKeySet;
 use MMSM\Lib\Parsers\JsonBodyParser;
 use MMSM\Lib\Parsers\XmlBodyParser;
 use MMSM\Lib\Validators\JWKValidator;
@@ -15,6 +17,8 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Respect\Validation\Exceptions\ValidationException;
+use SimpleJWT\Keys\SymmetricKey;
+use SimpleJWT\Util\Util;
 use Slim\App;
 use Slim\Middleware\BodyParsingMiddleware as SlimBodyParsingMiddleware;
 use MMSM\Lib\BodyParsingMiddleware;
@@ -55,6 +59,7 @@ return [
     'log.errors' => env('LOG_ERRORS', false),
     'log.error.details' => env('LOG_ERROR_DETAILS', false),
     'auth.jwk_uri' => env('JWK_URI', false),
+    'auth.jwt.issuer' => env('JWT_ISSUER', 'frandine'),
     'auth.allowedBearers' => [
         'bearer'
     ],
@@ -186,5 +191,26 @@ return [
             true
         );
         return $errorMiddleware;
+    },
+    InternalKeySet::class => function (ContainerInterface $container) {
+        $env = $container->get('environment');
+        $keyset = new InternalKeySet();
+        if (stristr($env, 'prod') !== false) {
+            $keyfile = '/keys/internal_jwk_set.json';
+            $content = file_get_contents($keyfile);
+            if ($content === false) {
+                throw new JwkException('Failed to read key file: "' . $keyfile . '".');
+            }
+            $keyset->load($content);
+        } else {
+            $keyset->add(new SymmetricKey([
+                'kty' => SymmetricKey::KTY,
+                'k' => Util::base64url_encode('0123456789'),
+                'alg' => 'HS256',
+                'kid' => 'adb1ce7a-0257-4c5e-bb6d-de7819582621',
+                'exp' => strtotime("+24 hours"),
+            ], 'php'));
+        }
+        return $keyset;
     },
 ];
